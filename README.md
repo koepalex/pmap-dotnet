@@ -6,8 +6,8 @@ This tool helps to understand the memory used parse the output of the [`pmap`](h
 
 1. Run your dotnet application under linux (e.g. in docker)
 2. Get the pid of your process `ps aux  grep | <appname>`
-3. Run pmap `pmap -XX -p -q <pid>` > appname_ptrace
-4. Run pmap-dotnet `cargo run -- --pmap-output="<FullPathTo_appname_pmap"`
+3. Run pmap `pmap -XX -p -q <pid>` > appname_pmap
+4. Run pmap-dotnet `cargo run -- --pmap-output="<FullPathTo_appname_pmap>"`
 
 ## Results
 
