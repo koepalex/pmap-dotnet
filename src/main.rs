@@ -17,6 +17,10 @@ struct Args {
     /// Path to the folder containing the application (executables and libraries)
     #[clap(short, long, default_value = "/app")]
     application_folder: Option<String>,
+
+    /// Default thread stack size run `ulimit -s` to read for your distribution, can be modified by `COMPlus_DefaultStackSize` env variable for dotnet
+    #[clap(short, long, default_value = "8192")]
+    thread_stack_size: Option<u64>,
 }
 
 fn main() {
@@ -29,7 +33,7 @@ fn main() {
     println!("Overview of Memory Pages which are bigger than 10 MiB:");
     println!("{}\n", memory_pages);
     let potential_threads: usize = memory_pages.0.iter().filter(|page| 
-        page.size_in_kibibyte == 8192 
+        page.size_in_kibibyte == args.thread_stack_size.unwrap()
         && page.mapping_kind == MappingKind::AnonymousPrivate(None)
         && page.permissions.contains(Permissions::Read)
         && page.permissions.contains(Permissions::Write)
