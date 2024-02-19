@@ -1,3 +1,6 @@
+use std::vec;
+use std::fmt::Write;
+
 use clap::Parser;
 use file_system::*;
 use pmap_analyzer::PMapCategory;
@@ -21,6 +24,10 @@ struct Args {
     /// Default thread stack size run `ulimit -s` to read for your distribution, can be modified by `COMPlus_DefaultStackSize` env variable for dotnet
     #[clap(short, long, default_value = "8192")]
     thread_stack_size: Option<u64>,
+
+    /// Path to csv file, that contains start and end addresses of coalesces memory pages, that should be broken down
+    #[clap(short, long)]
+    csv_of_memory_regions: Option<String>,
 }
 
 fn main() {
@@ -42,8 +49,64 @@ fn main() {
         && page.virtual_memory_flags.contains(VirtualMemoryFlags::MayWrite)
         && page.virtual_memory_flags.contains(VirtualMemoryFlags::MayExecute))
         .count();
+    println!("{:~<258}", "");
     println!("Potential Number of Threads Stacks: {} (Total: {} KiB)", potential_threads, potential_threads * 8192);
 
+    if let Some(file_with_memory_regions) = args.csv_of_memory_regions {
+
+        let memory_regions = FileInfo::new(file_with_memory_regions);
+        if !memory_regions.is_exist() {
+            eprintln!("File with memory regions does not exist");
+            return;
+        }
+
+        println!("{:~<258}", "");
+
+        let mut memory_pages_in_regions = vec![];
+
+        memory_regions.read_to_string().lines().for_each(
+            |line| {
+                let line = line.trim();
+                if line.is_empty() {
+                    return; // skip empty lines
+                }
+                let memory_region = line.split(',').map(|s| parse_hex(s.trim().to_string())).collect::<Vec<u64>>();
+                if memory_region.len() != 2 {
+                    eprintln!("Invalid line: {}", line);
+                    return;
+                }
+
+                let start = memory_region[0];
+                let end = memory_region[1];
+
+                println!("Memory Pages in the range: 0x{:x} - 0x{:x}", start, end);
+
+                memory_pages.0.iter().filter(|page| page.address >= start && ( page.address + page.size_in_kibibyte * 1024) <= end).for_each(|page| {
+                    print!("{}", page);
+                    memory_pages_in_regions.push(page.address);
+                });
+
+            },
+        );
+
+        if memory_pages_in_regions.is_empty() {
+            println!("No memory pages found in the given memory regions");
+        } else {
+            let mut res = String::new(); 
+            write!(&mut res, "{}", '{').unwrap();
+            for page_addr in memory_pages_in_regions.iter() {
+                write!(&mut res, " 0x{:x},", page_addr).unwrap();
+            }
+            write!(&mut res, "{}", " }").unwrap();
+
+            println!("{}", res);
+        }
+    }
+
+}
+
+fn parse_hex(hex_str: String) -> u64 {
+    u64::from_str_radix(hex_str.replace("`", "").as_str(), 16).unwrap_or(0)
 }
 
 fn get_memory_pages(input: FileInfo) -> pmap::PMapVec {
@@ -113,9 +176,9 @@ mod tests {
         let pmap_output = FileInfo::new(std::env::current_dir().unwrap().join("demo_data/pmap_demo").display().to_string());
 
         let memory_pages = get_memory_pages(pmap_output);
-        assert_eq!(memory_pages.len(), 4150);
+        assert_eq!(memory_pages.0.len(), 4150);
 
-        let some_page = memory_pages.get(36).unwrap();
+        let some_page = memory_pages.0.get(36).unwrap();
         assert_eq!(some_page.address, 0x7f6e842c5000);
         assert_eq!(some_page.permissions, make_bitflags!(Permissions::{Read | Execute | Private}));
         assert_eq!(some_page.offset, 0x000c5000);
@@ -157,12 +220,12 @@ mod tests {
             }
         ];
 
-        let categories = get_categories_from_memory_pages(memory_pages, None);
-        assert_eq!(categories.len(), 4);
-        assert_eq!(categories[0].name, "[heap]");
-        assert_eq!(categories[1].name, "[stack]");
-        assert_eq!(categories[2].name, "[vsyscall]");
-        assert_eq!(categories[0].total_size_in_kibibyte, 50);
-        assert_eq!(categories[0].pages.len(), 2);
+        let categories = get_categories_from_memory_pages(PMapVec(memory_pages), None);
+        assert_eq!(categories.0.len(), 4);
+        assert_eq!(categories.0[0].name, "[heap]");
+        assert_eq!(categories.0[1].name, "[stack]");
+        assert_eq!(categories.0[2].name, "[vsyscall]");
+        assert_eq!(categories.0[0].total_size_in_kibibyte, 50);
+        assert_eq!(categories.0[0].pages.len(), 2);
     }
 }
