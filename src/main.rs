@@ -82,8 +82,10 @@ fn main() {
                 println!("Memory Pages in the range: 0x{:x} - 0x{:x}", start, end);
 
                 memory_pages.0.iter().filter(|page| page.address >= start && ( page.address + page.size_in_kibibyte * 1024) <= end).for_each(|page| {
-                    print!("{}", page);
-                    memory_pages_in_regions.push(page.address);
+                    if !page.virtual_memory_flags.contains(VirtualMemoryFlags::DoNotIncludeInCoreDump) {
+                        print!("{}", page);
+                        memory_pages_in_regions.push(page.address);
+                    }
                 });
 
             },
