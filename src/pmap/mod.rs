@@ -1,8 +1,8 @@
-use enumflags2::{bitflags, BitFlags, BitFlag};
-use file_system::*;
+use enumflags2::{bitflags, BitFlags};
 use std::fmt::Display;
 use std::io::Error as ioError;
 use std::{error::Error, str::FromStr};
+use crate::file_info::FileInfo;
 
 // Sample output of pmap -XX -p PID
 //       Adresse Zugr  Versatz Gerät   Inode      Size KernelPageSize MMUPageSize    Rss    Pss Pss_Dirty Shared_Clean Shared_Dirty Private_Clean Private_Dirty Referenced Anonymous LazyFree AnonHugePages ShmemPmdMapped y Shared_Hugetlb Private_Hugetlb Swap SwapPss Locked THPeligible                 VmFlags Zuordnung
@@ -99,13 +99,14 @@ pub struct PMap {
 }
 
 impl PMap {
-    pub fn parse_pmap_output(pmap_output: FileInfo) -> Result<PMapVec, Box<dyn Error>> {
-        if !pmap_output.is_exist() {
+    pub fn parse_pmap_output<P: Into<std::path::PathBuf>>(path: P) -> Result<PMapVec, Box<dyn Error>> {
+        let pmap_output = FileInfo::new(path);
+        if !pmap_output.exists() {
             return Err(ioError::new(std::io::ErrorKind::NotFound, "File not found").into());
         }
 
         let mut pmaps = PMapVec(Vec::new());
-        pmap_output.read_to_string().lines().skip(1).try_for_each(
+        pmap_output.read_to_string()?.lines().skip(1).try_for_each(
             |line| -> Result<(), Box<dyn Error>> {
                 let line = line.trim();
                 if line.is_empty() {

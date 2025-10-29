@@ -2,13 +2,14 @@ use std::vec;
 use std::fmt::Write;
 
 use clap::Parser;
-use file_system::*;
 use pmap_analyzer::PMapCategory;
 
 use crate::pmap::*;
+use crate::file_info::*;
 
 mod pmap;
 mod pmap_analyzer;
+pub mod file_info;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -33,7 +34,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let pmap_output = FileInfo::new(args.pmap_output);
-    let memory_pages = get_memory_pages(pmap_output);
+    let memory_pages = get_memory_pages(&pmap_output);
     let categories = get_categories_from_memory_pages(memory_pages.clone(), args.application_folder);
     println!("Overview of Categories:");
     println!("{}\n", categories);
@@ -55,7 +56,7 @@ fn main() {
     if let Some(file_with_memory_regions) = args.csv_of_memory_regions {
 
         let memory_regions = FileInfo::new(file_with_memory_regions);
-        if !memory_regions.is_exist() {
+        if !memory_regions.exists() {
             eprintln!("File with memory regions does not exist");
             return;
         }
@@ -64,7 +65,7 @@ fn main() {
 
         let mut memory_pages_in_regions = vec![];
 
-        memory_regions.read_to_string().lines().for_each(
+        memory_regions.read_to_string().unwrap().lines().for_each(
             |line| {
                 let line = line.trim();
                 if line.is_empty() {
@@ -111,8 +112,8 @@ fn parse_hex(hex_str: String) -> u64 {
     u64::from_str_radix(hex_str.replace("`", "").as_str(), 16).unwrap_or(0)
 }
 
-fn get_memory_pages(input: FileInfo) -> pmap::PMapVec {
-    let memory_pages = pmap::PMap::parse_pmap_output(input).expect("Could not parse pmap output");
+fn get_memory_pages(input: &FileInfo) -> pmap::PMapVec {
+    let memory_pages = pmap::PMap::parse_pmap_output(input.full_name()).expect("Could not parse pmap output");
     memory_pages
 }
 
@@ -175,9 +176,9 @@ mod tests {
 
     #[test]
     fn test_pmap_output() {
-        let pmap_output = FileInfo::new(std::env::current_dir().unwrap().join("demo_data/pmap_demo").display().to_string());
+        let pmap_output = FileInfo::new(std::env::current_dir().unwrap().join("demo_data/pmap_demo"));
 
-        let memory_pages = get_memory_pages(pmap_output);
+        let memory_pages = get_memory_pages(&pmap_output);
         assert_eq!(memory_pages.0.len(), 4150);
 
         let some_page = memory_pages.0.get(36).unwrap();
