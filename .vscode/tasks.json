@@ -2,8 +2,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "cargo",
-			"command": "build",
+			"type": "shell",
+			"args": [
+				"build"
+			],
+			"command": "cargo",
 			"problemMatcher": [
 				"$rustc"
 			],
@@ -11,20 +14,27 @@
 				"kind": "build",
 				"isDefault": true
 			},
-			"label": "rust: cargo build"
+			"label": "rust: cargo build",
 		},
 		{
-			"type": "cargo",
-			"command": "test",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test"
+			],
 			"problemMatcher": [
 				"$rustc"
 			],
 			"group": "test",
-			"label": "rust: cargo test"
+			"label": "rust: cargo test",
+			"isTestCommand": true
 		},
 		{
-			"type": "cargo",
-			"command": "run",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"run"
+			],
 			"problemMatcher": [
 				"$rustc"
 			],
